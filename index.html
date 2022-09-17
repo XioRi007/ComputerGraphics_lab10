@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+    <head> 
+         <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+         <title>Приклад 08.02 - ЛОГІЧНІ ОПЕРАЦІЇ НАД МОДЕЛЛЮ З ВИКОРИСТАННЯМ THREECSG</title>
+	     <script src="./js/three.js"></script>
+		 <script src="./js/TrackballControls.js"></script>
+		 <script src="./js/ThreeCSG.js"></script>			 
+		 <script src="./js/dat.gui.js"></script>			
+	</head>
+	<body>
+        
+		<script>
+
+		
+		init();
+	
+			function init()
+			{
+				
+				// створюємо рендер і задаємо розмір
+				var renderer = window.WebGLRenderingContext ? new THREE.WebGLRenderer({antialias:true}) : new THREE.CanvasRenderer();
+				renderer.setClearColor(new THREE.Color(0xEEEEEE));
+                renderer.setSize( window.innerWidth, window.innerHeight );
+				// додаємо вивід візуалізатора до html-елементу
+				document.body.appendChild( renderer.domElement );
+				// створюємо камеру
+				var camera = new THREE.PerspectiveCamera(45,window.innerWidth / window.innerHeight, 0.1,1000);
+				// створюємо сцену, яка буде містити всі наші елементи, такі як об'єкти, камери і джерела світла
+				var scene = new THREE.Scene();
+			
+				var controls = new THREE.TrackballControls( camera, renderer.domElement );
+            	// Світло
+				var light = new THREE.PointLight(0xffffff);
+				light.position.set(0,250,0);
+				scene.add(light);
+		
+
+				// Створюємо матеріал
+				var materials = new THREE.MeshNormalMaterial({wireframe:true});
+				var materials1 = new THREE.MeshNormalMaterial({wireframe:false});
+				const guiControls = new function(){
+					this.r1 = 10;
+					this.r2 = 30;
+					this.r3 = 20;
+					this.h1 = 20;
+					this.h2 = 20;
+					this.h3 = 20;
+				};
+	
+				var newMesh = makeFullBSP(guiControls.r1, guiControls.h1, guiControls.r2, guiControls.h2, guiControls.r3, guiControls.h3, materials, materials1);
+				scene.add( newMesh );
+
+				var axisHelper = new THREE.AxesHelper(800); 
+				axisHelper.name="AxisHelper";
+				scene.add(axisHelper);
+			
+			
+			
+				camera.position.x = 0;
+				camera.position.y = 200;
+				camera.position.z = 300;
+				camera.lookAt(scene.position);
+
+
+				
+				
+				const gui = new dat.GUI();
+				const cylFolder = gui.addFolder('Цилиндр');
+				cylFolder.add(guiControls, 'r1', 10,50).onChange((val)=>{//cylinder r
+					scene.remove(scene.getObjectByName("mesh"));
+					var mesh = makeFullBSP(val, guiControls.h1, guiControls.r2, guiControls.h2, guiControls.r3, guiControls.h3, materials, materials1);
+					scene.add(mesh);					
+				});
+				cylFolder.add(guiControls, 'h1', 10,50).onChange((val)=>{//cylinder h
+					scene.remove(scene.getObjectByName("mesh"));
+					var mesh = makeFullBSP(guiControls.r1, val, guiControls.r2, guiControls.h2, guiControls.r3, guiControls.h3, materials, materials1);
+					scene.add(mesh);					
+				});
+				cylFolder.open();
+
+				const coneFolder = gui.addFolder('Конус');
+				gui.add(guiControls, 'r2', 10,50).onChange((val)=>{//cone r
+					scene.remove(scene.getObjectByName("mesh"));
+					var mesh = makeFullBSP(guiControls.r1, guiControls.h1, val, guiControls.h2, guiControls.r3, guiControls.h3, materials, materials1);
+					scene.add(mesh);					
+				});
+				gui.add(guiControls, 'h2', 10,50).onChange((val)=>{//cone h
+					scene.remove(scene.getObjectByName("mesh"));
+					var mesh = makeFullBSP(guiControls.r1, guiControls.h1, guiControls.r2, val, guiControls.r3, guiControls.h3, materials, materials1);
+					scene.add(mesh);					
+				});
+				coneFolder.open();
+
+				const cyl2Folder = gui.addFolder('Усеченный конус');
+				gui.add(guiControls, 'r3', 10,50).onChange((val)=>{//cone r
+					scene.remove(scene.getObjectByName("mesh"));
+					var mesh = makeFullBSP(guiControls.r1, guiControls.h1, guiControls.r2, guiControls.h2, val, guiControls.h3, materials, materials1);
+					scene.add(mesh);					
+				});
+				gui.add(guiControls, 'h3', 10,50).onChange((val)=>{//cone h
+					scene.remove(scene.getObjectByName("mesh"));
+					var mesh = makeFullBSP(guiControls.r1, guiControls.h1, guiControls.r2, guiControls.h2, guiControls.r3, val, materials, materials1);
+					scene.add(mesh);					
+				});
+				cyl2Folder.open();
+
+	 			renderScene();
+
+		function renderScene() 
+			{
+ 	        requestAnimationFrame( renderScene );
+			controls.update();
+ 			renderer.render( scene, camera );
+			}			
+};
+		function makeCylinderBSP(r, r2, h, x, y, z, materials){
+			var geometry = new THREE.CylinderGeometry(r,r2,h,100,20);
+			var figure = new THREE.Mesh(geometry,materials);
+			figure.position.set(x,y,z);
+			var bsp = new ThreeBSP(figure);
+			return bsp;			
+		}
+		function makeConeBSP(r, h, x, y, z, materials){
+			var geometry = new THREE.ConeGeometry( r, h, 32 );
+			var figure = new THREE.Mesh(geometry,materials);
+			figure.position.set(x,y,z);
+			var bsp = new ThreeBSP(figure);
+			return bsp;			
+		}
+
+		function makeFullBSP(r1, h1, r2, h2, r3, h3, materials, materials1){
+			let h4 = h2/2;
+			var bsp = makeCylinderBSP(r1,r1,h1, 0,0,0,materials);
+			var cBSP = makeConeBSP(r2, h2, 0,(h1+h2)/2,0,materials);
+			var c2BSP = makeCylinderBSP(r3,
+										r2/2,
+										h3, 
+										0,
+										(((h1+h2)/2)+h3/2),
+										0,
+										materials);
+			var mesh = bsp.union(cBSP).union(c2BSP).toMesh(materials1);
+			mesh.name = "mesh";		
+			return mesh;	
+		}
+
+
+
+		</script>
+	</body>
+</html>
